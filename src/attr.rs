@@ -38,4 +38,6 @@ fn make_raw_terminal_attr(termios: &mut Termios) {
     termios.c_oflag &= !(OPOST);
     termios.c_cflag |= CS8;
     termios.c_lflag &= !(ECHO | ICANON | IEXTEN | ISIG);
+    termios.c_cc[libc::VMIN] = 0;
+    termios.c_cc[libc::VTIME] = 1;
 }
