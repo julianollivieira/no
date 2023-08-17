@@ -3,6 +3,13 @@ use libc::{
 };
 use std::{io, mem};
 
+/// Sets the terminal to raw mode.
+pub fn set_terminal_raw_mode() {
+    let mut termios = get_terminal_attr().unwrap();
+    make_raw_terminal_attr(&mut termios);
+    set_terminal_attr(&termios);
+}
+
 /// Get the current terminal attributes.
 ///
 /// TODO: error handling
@@ -26,7 +33,7 @@ pub fn set_terminal_attr(termios: &Termios) {
 /// Set the terminal to raw mode.
 ///
 /// TODO: checkout (https://linux.die.net/man/3/cfmakeraw) for more flags
-pub fn make_raw_terminal_attr(termios: &mut Termios) {
+fn make_raw_terminal_attr(termios: &mut Termios) {
     termios.c_iflag &= !(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     termios.c_oflag &= !(OPOST);
     termios.c_cflag |= CS8;
