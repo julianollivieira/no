@@ -9,6 +9,7 @@ a very basic text editor written in rust
 
 # todos (might be too ambitious)
 
+- update dimensions on terminal resize
 - line numbers
 - actual editing
 - reading from files
