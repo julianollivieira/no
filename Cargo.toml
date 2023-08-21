@@ -1,9 +1,16 @@
 [package]
 name = "no"
 version = "0.1.0"
+authors = ["Julian Ollivieira"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "a very basic text editor written in rust"
+readme = "README.md"
+homepage = "https://github.com/julianollivieira/no"
+repository = "https://github.com/julianollivieira/no"
+license = "MIT"
+license-file = "LICENSE"
+keywords = ["text-editor"]
+categories = ["text-editors"]
 
 [dependencies]
 libc = "0.2.147"
