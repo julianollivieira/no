@@ -1,88 +1,81 @@
 mod attr;
+mod helpers;
 mod input;
 mod screen;
 
 use attr::IntoRawMode;
-use std::{
-    env, fs,
-    io::{self, Read, Write},
-};
+use input::async_stdin;
+use std::io::{self, Read, Write};
 
-// use crate::input::async_stdin;
-
-#[derive(Debug)]
-pub struct Vector2D {
-    x: usize,
-    y: usize,
-}
-
+/// The config for the editor.
 pub struct EditorConfig {
-    dimensions: Vector2D,
+    height: u16,
+    width: u16,
 }
 
 fn main() -> io::Result<()> {
-    let mut stdin = input::async_stdin().bytes();
+    let mut stdin = async_stdin();
     let mut stdout = io::stdout()
         .lock()
         .try_into_raw_mode()
         .expect("failed to enable raw mode for stdout");
 
-    // get terminal dimensions
-    screen::move_cursor_to_bottom_right(&mut stdout.output);
-    let pos = screen::get_cursor_position(&mut stdin, &mut stdout.output);
+    let (height, width) = screen::get_terminal_size()?;
+    let config = EditorConfig { height, width };
 
-    // dbg!(pos);
+    let mut render_buf = Vec::new();
 
     loop {
-        // screen::clear(&mut stdout.output)?;
-        // TODO: print dimensions in dbg
+        // render a frame
+        screen::hide_cursor(&mut render_buf)?;
+        screen::move_cursor_to_origin(&mut render_buf)?;
 
-        let b = stdin.next();
-        if let Some(Ok(b)) = b {
-            if b == 0x03 {
-                screen::clear(&mut stdout.output)?;
-                // attr::set_terminal_attr(&editor_config.original_termios);
-                break Ok(());
+        for y in 0..config.height {
+            if y == config.height / 3 {
+                // render welcome message
+                let mut msg = format!("no editor -- version {}", env!("CARGO_PKG_VERSION"));
+                if msg.len() > config.width.into() {
+                    msg.truncate(config.width.into());
+                }
+
+                // center welcome message
+                let mut padding = (config.width as usize - msg.len()) / 2;
+                if padding > 0 {
+                    render_buf.write(b"~")?;
+                    padding -= 1;
+                }
+
+                while padding > 0 {
+                    render_buf.write(b" ")?;
+                    padding -= 1;
+                }
+
+                render_buf.write(msg.as_bytes())?;
             } else {
-                // buf.push(b);
-                // write!(stdout.output, "b: {:?}", b)?;
-                // stdout.output.flush().unwrap();
+                render_buf.write(b"~")?;
+            }
+
+            screen::clear_line(&mut render_buf)?;
+            if y < config.height - 1 {
+                render_buf.write(b"\r\n")?;
+            }
+        }
+
+        screen::move_cursor_to_origin(&mut render_buf)?;
+        screen::show_cursor(&mut render_buf)?;
+
+        screen::render(&mut stdout.output, &mut render_buf)?;
+
+        // read for input
+        let mut input_buf = [0; 1];
+        let bytes_read = stdin.read(&mut input_buf);
+
+        if bytes_read.is_ok() {
+            if input_buf[0] == 0x03 {
+                break;
             }
         }
     }
 
-    // let editor_config = EditorConfig {
-    //     original_termios: attr::get_terminal_attr().unwrap(),
-    //     // dimensions: screen::get_dimensions().unwrap(),
-    //     dimensions: Vector2D { x: 0, y: 0 },
-    // };
-
-    // println!("dimensions: {:?}", editor_config.dimensions);
-    // attr::set_terminal_raw_mode();
-
-    // let mut buf = [0; 1];
-    // while async_stdin().read(&mut buf).unwrap() == 1 && buf != [0x03] {
-    //     screen::clear();
-    //     println!("buf: {:?}", buf);
-    // }
-
-    // let mut buf = [0; 1];
-    // while io::stdin().read(&mut buf).expect("") == 1 && buf != [0x03] {
-    //     screen::clear();
-    //     println!("buf: {:?}", buf);
-    //     // let byte = input::read_key();
-    // }
-
-    // loop {
-    //     screen::clear();
-    //     let byte = input::read_key();
-    //
-    //     if byte == 0x03 {
-    //         screen::clear();
-    //         attr::set_terminal_attr(&editor_config.original_termios);
-    //         break;
-    //     } else {
-    //         println!("{}", byte);
-    //     }
-    // }
+    Ok(())
 }

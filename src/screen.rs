@@ -1,78 +1,55 @@
-use std::io::{self, Bytes, Read, StdoutLock, Write};
+use libc::{STDOUT_FILENO, TIOCGWINSZ};
+use std::{ffi::c_ushort, io, mem};
 
-use crate::{attr::RawTerminal, input::AsyncReader, Vector2D};
+use crate::helpers::convert_syserr_to_result;
 
+/// Escape character.
 const ESC: char = 27 as char;
 
-/// Clears the screen.
-pub fn clear(w: &mut impl io::Write) -> io::Result<()> {
-    write!(w, "{ESC}[2J{ESC}[1;1H")
+/// Represents the size of the terminal.
+#[repr(C)]
+struct TerminalSize {
+    row: c_ushort,
+    col: c_ushort,
+    x: c_ushort,
+    y: c_ushort,
 }
 
-/// Moves the cursor to the bottom left corner.
-pub fn move_cursor_to_bottom_right(w: &mut impl io::Write) -> io::Result<()> {
-    write!(w, "{ESC}[999C{ESC}[999B")
+/// Move cursor to origin.
+pub fn move_cursor_to_origin(w: &mut impl io::Write) -> io::Result<()> {
+    write!(w, "{ESC}[H")
+}
+
+/// Clears the current line.
+pub fn clear_line(w: &mut impl io::Write) -> io::Result<()> {
+    write!(w, "{ESC}[K")
+}
+
+/// Hides the cursor.
+pub fn hide_cursor(w: &mut impl io::Write) -> io::Result<()> {
+    write!(w, "{ESC}[?25l")
+}
+
+/// Shows the cursor.
+pub fn show_cursor(w: &mut impl io::Write) -> io::Result<()> {
+    write!(w, "{ESC}[?25h")
 }
 
 /// Gets the dimensions of the terminal.
-pub fn get_cursor_position(stdin: &mut Bytes<AsyncReader>, stdout: &mut StdoutLock) -> Vector2D {
-    let mut buf: Vec<char> = Vec::new();
-    let mut i = 0;
+///
+/// TODO: provide fallback method to retrieve terminal size using cursor
+/// position
+pub fn get_terminal_size() -> io::Result<(u16, u16)> {
+    let mut size: TerminalSize = unsafe { mem::zeroed() };
 
-    write!(stdout, "{ESC}[6n").unwrap();
-    stdout.flush().unwrap();
+    convert_syserr_to_result(unsafe {
+        libc::ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut size as *mut _).into()
+    })?;
 
-    // while i < buf.len() - 1 {
-    while i < buf.len() {
-        let b = stdin.next();
-        if let Some(Ok(b)) = b {
-            buf.push(b as char);
-        } else {
-            break;
-        }
+    Ok((size.row, size.col))
+}
 
-        if buf[i] == 'R' {
-            break;
-        }
-
-        i += 1;
-    }
-
-    dbg!(buf);
-
-    // print!("{ESC}[6n");
-    // stdout.flush().unwrap();
-
-    // stdout.flush().unwrap();
-
-    // stdin.read(&mut buf).unwrap();
-    // while
-    // stdin.
-
-    // let mut i = 0;
-    // while let Some(b) = stdin.next() {
-    //     buf[i] = b.unwrap();
-    //
-    //     i += 1;
-    //
-    //     if i == buf.len() + 1 {
-    //         break;
-    //     }
-    // }
-    //
-    // dbg!(buf);
-    //
-    // let buf = String::from_utf8_lossy(&buf);
-    // let mut iter = buf[2..].split(';');
-    // let row = iter.next().unwrap().parse::<u16>().unwrap();
-    // let col = iter.next().unwrap().parse::<u16>().unwrap();
-    //
-    // // println!("aa");
-    //
-    // Vector2D {
-    //     x: col.into(),
-    //     y: row.into(),
-    // }
-
-    Vector2D { x: 0, y: 0 }
+/// Render buffer to the screen.
+pub fn render(w: &mut impl io::Write, buf: &Vec<u8>) -> io::Result<()> {
+    write!(w, "{}", String::from_utf8_lossy(buf))
 }

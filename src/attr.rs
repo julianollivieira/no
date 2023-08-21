@@ -6,6 +6,9 @@ use std::{
     mem,
 };
 
+use crate::helpers::convert_syserr_to_result;
+
+
 pub struct RawTerminal<W: Write> {
     original_termios: Termios,
     // TODO: make private
@@ -39,20 +42,17 @@ impl<W: Write> IntoRawMode for W {
 /// Gets the current terminal attributes.
 pub fn get_terminal_attr() -> io::Result<Termios> {
     let mut termios = unsafe { mem::zeroed() };
-    let ret = unsafe { libc::tcgetattr(libc::STDOUT_FILENO, &mut termios) };
 
-    ret.eq(&0)
-        .then(|| termios)
-        .ok_or_else(|| io::Error::last_os_error())
+    convert_syserr_to_result(unsafe { libc::tcgetattr(libc::STDOUT_FILENO, &mut termios).into() })?;
+
+    Ok(termios)
 }
 
 /// Sets the current terminal attributes.
 pub fn set_terminal_attr(termios: &Termios) -> io::Result<()> {
-    let ret = unsafe { libc::tcsetattr(libc::STDOUT_FILENO, libc::TCSANOW, termios) };
-
-    ret.eq(&0)
-        .then(|| ())
-        .ok_or_else(|| io::Error::last_os_error())
+    convert_syserr_to_result(unsafe {
+        libc::tcsetattr(libc::STDOUT_FILENO, libc::TCSANOW, termios).into()
+    })
 }
 
 /// Sets the terminal to raw mode.
@@ -61,6 +61,4 @@ pub fn make_raw_terminal_attr(termios: &mut Termios) {
     termios.c_oflag &= !(OPOST);
     termios.c_cflag |= CS8;
     termios.c_lflag &= !(ECHO | ICANON | IEXTEN | ISIG);
-    // termios.c_cc[libc::VMIN] = 0;
-    // termios.c_cc[libc::VTIME] = 1;
 }
