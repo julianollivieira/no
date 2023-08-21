@@ -8,7 +8,6 @@ readme = "README.md"
 homepage = "https://github.com/julianollivieira/no"
 repository = "https://github.com/julianollivieira/no"
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["text-editor"]
 categories = ["text-editors"]
 
