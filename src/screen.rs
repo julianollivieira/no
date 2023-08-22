@@ -20,6 +20,12 @@ pub fn move_cursor_to_origin(w: &mut impl io::Write) -> io::Result<()> {
     write!(w, "{ESC}[H")
 }
 
+/// Move cursor to specified coordinates.
+pub fn move_cursor_to_(w: &mut impl io::Write, row: u16, col: u16) -> io::Result<()> {
+    // write!(w, "{ESC}[{row};{col}H")
+    write!(w, "{ESC}[5;5H")
+}
+
 /// Clears the current line.
 pub fn clear_line(w: &mut impl io::Write) -> io::Result<()> {
     write!(w, "{ESC}[K")
